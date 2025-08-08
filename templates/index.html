@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Monitoring Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            background-color: #f0f2f5;
+            padding: 20px;
+        }
+        
+        .dashboard-container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .sensor-card {
+            height: 100%;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            background-color: white;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin: 10px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-normal {
+            background-color: #28a745;
+            box-shadow: 0 0 10px #28a745;
+        }
+        
+        .status-moderate {
+            background-color: #ffc107;
+            box-shadow: 0 0 10px #ffc107;
+        }
+        
+        .status-high-risk {
+            background-color: #dc3545;
+            box-shadow: 0 0 10px #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .prediction-normal { color: #28a745; }
+        .prediction-moderate { color: #ffc107; }
+        .prediction-high-risk { color: #dc3545; }
+        
+        .explanation-section {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .shap-container {
+            height: 150px;
+            margin-top: 10px;
+            position: relative;
+        }
+        
+        .shap-graph {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .shap-legend {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            font-size: 0.8em;
+            color: #666;
+        }
+        
+        .control-panel {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sensor-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+        
+        .sensor-status {
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+        
+        .chart-container {
+            height: 200px;
+            margin-bottom: 10px;
+        }
+        
+        .sensor-info {
+            margin-bottom: 10px;
+        }
+        
+        .card-header {
+            padding: 10px 15px;
+            background-color: #f8f9fa;
+        }
+        
+        .card-body {
+            padding: 15px;
+        }
+        
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+        
+        .card-title {
+            font-size: 1.1em;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1 class="text-center">Sensor Monitoring Dashboard</h1>
+        
+        <!-- Control Panel -->
+        <div class="control-panel text-center">
+            <button id="toggleButton" class="btn btn-primary">Start Data Generation</button>
+        </div>
+
+        <div class="row">
+            <!-- Temperature Card -->
+            <div class="col-md-4 col-lg-2-4">
+                <div class="card sensor-card">
+                    <div class="status-indicator status-normal" id="temperatureIndicator"></div>
+                    <div class="card-header">
+                        <h5 class="card-title">Temperature</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" id="temperatureChart"></div>
+                        <div class="sensor-info">
+                            <strong>Status:</strong> <span id="temperatureStatus" class="sensor-status prediction-normal">Normal</span>
+                            <br>
+                            <strong>Value:</strong> <span id="temperatureValue" class="sensor-value">--</span>°C
+                        </div>
+                        <div class="explanation-section">
+                            <h6>LIME</h6>
+                            <div id="temperatureLime"></div>
+                            <h6 class="mt-2">SHAP Values</h6>
+                            <div class="shap-container">
+                                <div id="temperatureShap" class="shap-graph"></div>
+                                <div class="shap-legend">Impact on Prediction</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oxygen Card -->
+            <div class="col-md-4 col-lg-2-4">
+                <div class="card sensor-card">
+                    <div class="status-indicator status-normal" id="oxygenIndicator"></div>
+                    <div class="card-header">
+                        <h5 class="card-title">Oxygen Level</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" id="oxygenChart"></div>
+                        <div class="sensor-info">
+                            <strong>Status:</strong> <span id="oxygenStatus" class="sensor-status prediction-normal">Normal</span>
+                            <br>
+                            <strong>Value:</strong> <span id="oxygenValue" class="sensor-value">--</span>%
+                        </div>
+                        <div class="explanation-section">
+                            <h6>LIME</h6>
+                            <div id="oxygenLime"></div>
+                            <h6 class="mt-2">SHAP Values</h6>
+                            <div class="shap-container">
+                                <div id="oxygenShap" class="shap-graph"></div>
+                                <div class="shap-legend">Impact on Prediction</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Humidity Card -->
+            <div class="col-md-4 col-lg-2-4">
+                <div class="card sensor-card">
+                    <div class="status-indicator status-normal" id="humidityIndicator"></div>
+                    <div class="card-header">
+                        <h5 class="card-title">Humidity</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" id="humidityChart"></div>
+                        <div class="sensor-info">
+                            <strong>Status:</strong> <span id="humidityStatus" class="sensor-status prediction-normal">Normal</span>
+                            <br>
+                            <strong>Value:</strong> <span id="humidityValue" class="sensor-value">--</span>%
+                        </div>
+                        <div class="explanation-section">
+                            <h6>LIME</h6>
+                            <div id="humidityLime"></div>
+                            <h6 class="mt-2">SHAP Values</h6>
+                            <div class="shap-container">
+                                <div id="humidityShap" class="shap-graph"></div>
+                                <div class="shap-legend">Impact on Prediction</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CO2 Card -->
+            <div class="col-md-4 col-lg-2-4">
+                <div class="card sensor-card">
+                    <div class="status-indicator status-normal" id="co2Indicator"></div>
+                    <div class="card-header">
+                        <h5 class="card-title">CO2 Level</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" id="co2Chart"></div>
+                        <div class="sensor-info">
+                            <strong>Status:</strong> <span id="co2Status" class="sensor-status prediction-normal">Normal</span>
+                            <br>
+                            <strong>Value:</strong> <span id="co2Value" class="sensor-value">--</span> ppm
+                        </div>
+                        <div class="explanation-section">
+                            <h6>LIME</h6>
+                            <div id="co2Lime"></div>
+                            <h6 class="mt-2">SHAP Values</h6>
+                            <div class="shap-container">
+                                <div id="co2Shap" class="shap-graph"></div>
+                                <div class="shap-legend">Impact on Prediction</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AQI Card -->
+            <div class="col-md-4 col-lg-2-4">
+                <div class="card sensor-card">
+                    <div class="status-indicator status-normal" id="aqiIndicator"></div>
+                    <div class="card-header">
+                        <h5 class="card-title">Air Quality Index</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" id="aqiChart"></div>
+                        <div class="sensor-info">
+                            <strong>Status:</strong> <span id="aqiStatus" class="sensor-status prediction-normal">Normal</span>
+                            <br>
+                            <strong>Value:</strong> <span id="aqiValue" class="sensor-value">--</span>
+                        </div>
+                        <div class="explanation-section">
+                            <h6>LIME</h6>
+                            <div id="aqiLime"></div>
+                            <h6 class="mt-2">SHAP Values</h6>
+                            <div class="shap-container">
+                                <div id="aqiShap" class="shap-graph"></div>
+                                <div class="shap-legend">Impact on Prediction</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isGenerating = false;
+        let updateInterval = null;
+
+        // Function to update button state
+        function updateButtonState() {
+            const button = document.getElementById('toggleButton');
+            if (isGenerating) {
+                button.textContent = 'Stop Data Generation';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-danger');
+            } else {
+                button.textContent = 'Start Data Generation';
+                button.classList.remove('btn-danger');
+                button.classList.add('btn-primary');
+            }
+        }
+
+        // Function to update status indicator
+        function updateStatusIndicator(sensor, status) {
+            const indicator = document.getElementById(`${sensor}Indicator`);
+            indicator.className = 'status-indicator';
+            
+            switch(status.toLowerCase()) {
+                case 'normal':
+                    indicator.classList.add('status-normal');
+                    break;
+                case 'moderate':
+                    indicator.classList.add('status-moderate');
+                    break;
+                case 'high risk':
+                    indicator.classList.add('status-high-risk');
+                    break;
+            }
+        }
+
+        // Function to toggle data generation
+        async function toggleGeneration() {
+            try {
+                const response = await fetch('/toggle_generation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                isGenerating = data.status === 'started';
+                updateButtonState();
+                
+                if (isGenerating) {
+                    startDataUpdates();
+                } else {
+                    stopDataUpdates();
+                }
+            } catch (error) {
+                console.error('Error toggling data generation:', error);
+            }
+        }
+
+        // Function to start data updates
+        function startDataUpdates() {
+            if (!updateInterval) {
+                updateInterval = setInterval(fetchData, 2000);
+            }
+        }
+
+        // Function to stop data updates
+        function stopDataUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+
+        // Add click event listener to the button
+        document.getElementById('toggleButton').addEventListener('click', toggleGeneration);
+
+        // Function to update charts and explanations
+        function updateCharts(data) {
+            const sensors = ['temperature', 'oxygen', 'humidity', 'co2', 'aqi'];
+            
+            sensors.forEach(sensor => {
+                // Update status and value
+                const statusElement = document.getElementById(`${sensor}Status`);
+                const valueElement = document.getElementById(`${sensor}Value`);
+                const latestValue = data[sensor].values[data[sensor].values.length - 1];
+                const latestPrediction = data[sensor].predictions[data[sensor].predictions.length - 1];
+                
+                valueElement.textContent = latestValue.toFixed(1);
+                statusElement.textContent = latestPrediction;
+                statusElement.className = `sensor-status prediction-${latestPrediction.toLowerCase().replace(' ', '-')}`;
+                
+                // Update status indicator
+                updateStatusIndicator(sensor, latestPrediction);
+                
+                // Update main chart
+                const trace = {
+                    x: data[sensor].timestamps,
+                    y: data[sensor].values,
+                    type: 'scatter',
+                    name: sensor.charAt(0).toUpperCase() + sensor.slice(1)
+                };
+                
+                const layout = {
+                    title: `${sensor.charAt(0).toUpperCase() + sensor.slice(1)} Over Time`,
+                    xaxis: { title: 'Time' },
+                    yaxis: { title: sensor === 'temperature' ? 'Temperature (°C)' : 
+                            sensor === 'oxygen' ? 'Oxygen Level (%)' :
+                            sensor === 'humidity' ? 'Humidity (%)' :
+                            sensor === 'co2' ? 'CO2 Level (ppm)' : 'AQI' }
+                };
+                
+                Plotly.newPlot(`${sensor}Chart`, [trace], layout);
+                
+                // Update explanations if available
+                const explanations = data[sensor].explanations;
+                if (explanations) {
+                    // Update LIME explanation
+                    const limeElement = document.getElementById(`${sensor}Lime`);
+                    if (explanations.lime) {
+                        limeElement.innerHTML = explanations.lime.map(item => 
+                            `<div>${item[0]}: ${item[1].toFixed(4)}</div>`
+                        ).join('');
+                    } else {
+                        limeElement.innerHTML = '<div>No LIME explanation available</div>';
+                    }
+                    
+                    // Update SHAP values as a line graph
+                    const shapElement = document.getElementById(`${sensor}Shap`);
+                    if (explanations.shap) {
+                        const shapValue = explanations.shap.values[0];
+                        const timePoints = Array.from({length: 20}, (_, i) => i);
+                        const values = Array(20).fill(0).map((_, i) => 
+                            shapValue * (1 + 0.2 * Math.sin(i * 0.5 + Date.now() * 0.001))
+                        );
+                        
+                        const shapTrace = {
+                            x: timePoints,
+                            y: values,
+                            type: 'scatter',
+                            mode: 'lines',
+                            line: {
+                                color: shapValue >= 0 ? '#28a745' : '#dc3545',
+                                width: 2
+                            },
+                            fill: 'tozeroy',
+                            fillcolor: shapValue >= 0 ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)'
+                        };
+                        
+                        const shapLayout = {
+                            margin: { t: 0, r: 0, b: 20, l: 30 },
+                            xaxis: { 
+                                showgrid: false,
+                                showticklabels: false
+                            },
+                            yaxis: { 
+                                showgrid: true,
+                                gridcolor: '#eee',
+                                zeroline: true,
+                                zerolinecolor: '#999'
+                            },
+                            paper_bgcolor: 'rgba(0,0,0,0)',
+                            plot_bgcolor: 'rgba(0,0,0,0)',
+                            showlegend: false
+                        };
+                        
+                        Plotly.newPlot(`${sensor}Shap`, [shapTrace], shapLayout);
+                    } else {
+                        shapElement.innerHTML = '<div>No SHAP values available</div>';
+                    }
+                }
+            });
+        }
+
+        // Function to fetch data from the server
+        async function fetchData() {
+            try {
+                const response = await fetch('/get_data');
+                const data = await response.json();
+                updateCharts(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        // Check initial status
+        async function checkInitialStatus() {
+            try {
+                const response = await fetch('/get_status');
+                const data = await response.json();
+                isGenerating = data.is_generating;
+                updateButtonState();
+                if (isGenerating) {
+                    startDataUpdates();
+                }
+            } catch (error) {
+                console.error('Error checking initial status:', error);
+            }
+        }
+
+        // Check initial status when page loads
+        checkInitialStatus();
+    </script>
+</body>
+</html> 

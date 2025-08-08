@@ -1,0 +1,6 @@
+flask==2.0.1
+tensorflow==2.8.0
+numpy==1.21.2
+lime==0.2.0.1
+shap==0.40.0
+plotly==5.3.1 
